@@ -31,11 +31,10 @@ def get_symbols():
 def new_get_symbols():
     syms = []
     with open('symbols.csv') as f:
-        sym_reader = csv.reader(f.readlines())
-        for i, row in enumerate(sym_reader):
-            if i == 0:
-                pass
-            syms.append(row[0])
+        sym_reader = csv.DictReader(f.readlines())
+        for row in sym_reader:
+            syms.append(row)
+
     return syms
 
 
@@ -60,8 +59,9 @@ def main():
         try:
             for i in range(0, len(query_syms), chunk_size):
                 batch_syms = query_syms[i:i + chunk_size]
+                sym_dict = dict(map(lambda x: (x['Ticker'], x), batch_syms))
 
-                query = 'http://download.finance.yahoo.com/d/quotes.csv?s=%s&f=%s' % (','.join(batch_syms), ''.join(map(lambda x: x[1], cols)))
+                query = 'http://download.finance.yahoo.com/d/quotes.csv?s=%s&f=%s' % (','.join(map(lambda x: x['Ticker'], batch_syms)), ''.join(map(lambda x: x[1], cols)))
                 r = requests.get(query)
                 if r.status_code > 299:
                     print r.status_code
@@ -71,8 +71,9 @@ def main():
                 reader = csv.reader(StringIO.StringIO(clean), delimiter=",", quotechar='"')
                 for row in reader:
                     sym = dict(zip(map(lambda x: x[0], cols), row))
+                    sym.update(sym_dict.get(sym['sym'], {}))
                     syms.append(sym)
-                    j = json.dumps(sym)
+                    j = json.dumps(sym, encoding="ISO-8859-1")
                     out.write(j+'\n')
                     if all(map(lambda v: v != 'N/A', sym.itervalues())):
                         price = float(sym['price'])
